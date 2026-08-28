@@ -41,47 +41,55 @@
 	min-width: 0;
 }
 
-.nfp-input {
+/* Values read as plain text until interacted with; the form-field box
+   treatment appears only on focus. The compound selector out-specifies
+   Obsidian's input[type="text"] base styles. */
+.nfp-root input.nfp-input {
 	width: 100%;
 	background: transparent;
 	border: none;
+	box-shadow: none;
+	border-radius: var(--radius-s);
 	color: var(--text-normal);
 	font-family: inherit;
 	font-size: inherit;
-	padding: 0;
+	height: auto;
+	padding: 0 var(--size-2-2);
 }
 
-.nfp-input:focus {
-	box-shadow: none;
-	border-bottom: 1px solid var(--interactive-accent);
+.nfp-root input.nfp-input:hover {
+	background: var(--background-modifier-hover);
 }
 
-.nfp-input[type="checkbox"] {
+.nfp-root input.nfp-input:focus {
+	background: var(--background-modifier-form-field);
+	box-shadow: 0 0 0 1px var(--background-modifier-border-focus);
+}
+
+.nfp-root input.nfp-input[type="checkbox"] {
 	width: auto;
 }
 
-.nfp-remove,
-.nfp-add {
+.nfp-remove {
 	background: none;
 	border: none;
 	box-shadow: none;
 	color: var(--text-faint);
 	cursor: pointer;
+	opacity: 0;
 	padding: 0 var(--size-2-1);
 	font-size: var(--font-smaller);
 }
 
-.nfp-remove {
-	opacity: 0;
-}
-
-.nfp-remove:hover,
-.nfp-add:hover {
+.nfp-remove:hover {
 	color: var(--text-normal);
 }
 
+/* Sizing only; look and hover state come from Obsidian's own
+   metadata-add-button / text-icon-button classes. */
 .nfp-add {
 	align-self: flex-start;
+	margin-top: var(--size-2-1);
 }
 
 .nfp-hidden {

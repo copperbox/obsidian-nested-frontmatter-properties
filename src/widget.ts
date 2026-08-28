@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import { isPlainObject } from "./detect";
 import {
 	addArrayItem,
@@ -51,10 +52,7 @@ function renderObject(
 		renderNode(valueEl, value, [...path, key], rootValue, commit);
 		addRemoveButton(row, [...path, key], rootValue, commit);
 	}
-	const addButton = container.createEl("button", {
-		cls: "nfp-add",
-		text: "Add property",
-	});
+	const addButton = createAddButton(container, "Add property");
 	addButton.addEventListener("click", () => {
 		addButton.addClass("nfp-hidden");
 		const input = container.createEl("input", {
@@ -97,10 +95,7 @@ function renderArray(
 		renderNode(body, item, [...path, index], rootValue, commit);
 		addRemoveButton(itemEl, [...path, index], rootValue, commit);
 	});
-	const addButton = container.createEl("button", {
-		cls: "nfp-add",
-		text: "Add item",
-	});
+	const addButton = createAddButton(container, "Add item");
 	addButton.addEventListener("click", () => {
 		const template = node.length > 0 ? blankLike(node[node.length - 1]) : "";
 		commit(addArrayItem(rootValue, path, template));
@@ -147,6 +142,15 @@ function renderLeaf(
 			input.blur();
 		}
 	});
+}
+
+// Native "+ Add property" markup so the buttons inherit Obsidian's own
+// default and hover styling in every theme.
+function createAddButton(container: HTMLElement, label: string): HTMLElement {
+	const button = container.createDiv({ cls: "metadata-add-button text-icon-button nfp-add" });
+	setIcon(button.createSpan({ cls: "text-button-icon" }), "lucide-plus");
+	button.createSpan({ cls: "text-button-label", text: label });
+	return button;
 }
 
 function addRemoveButton(
