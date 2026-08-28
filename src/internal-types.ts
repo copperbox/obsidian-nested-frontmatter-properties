@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, EventRef } from "obsidian";
 
 // Narrow, hand-written types for the undocumented surface this plugin touches,
 // matched against Obsidian 1.13 behavior. Obsidian has no public API for
@@ -23,6 +23,7 @@ export interface PropertyTypeWidget {
 	type: string;
 	icon: string;
 	name(): string;
+	default?(): unknown;
 	validate(value: unknown): boolean;
 	render(
 		el: HTMLElement,
@@ -39,6 +40,8 @@ export interface PropertyTypeInfo {
 export interface MetadataTypeManager {
 	registeredTypeWidgets: Record<string, PropertyTypeWidget>;
 	getTypeInfo(key: string, value: unknown): PropertyTypeInfo;
+	setType?(key: string, type: string): void | Promise<void>;
+	getAssignedType?(key: string): string | null;
 }
 
 export interface AppWithInternals extends App {
@@ -55,4 +58,27 @@ export interface MetadataEditorLike {
 
 export interface MarkdownViewWithMetadataEditor {
 	metadataEditor?: MetadataEditorLike;
+}
+
+// The property icon menu ("Property type" submenu lives here). The
+// file-property-menu workspace event and the menu item internals are
+// undocumented; all access is feature-detected.
+export interface MenuItemLike {
+	setTitle(title: string): MenuItemLike;
+	setIcon(icon: string): MenuItemLike;
+	onClick(callback: () => void): MenuItemLike;
+	setChecked?(checked: boolean): MenuItemLike;
+	submenu?: MenuLike | null;
+}
+
+export interface MenuLike {
+	items?: unknown[];
+	addItem(callback: (item: MenuItemLike) => void): unknown;
+}
+
+export interface WorkspaceWithPropertyMenu {
+	on(
+		name: "file-property-menu",
+		callback: (menu: MenuLike, property: string) => void
+	): EventRef;
 }

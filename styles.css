@@ -1,3 +1,12 @@
+/* Obsidian highlights the entire property row when any child has focus;
+   for nested trees that reads as the whole object being edited. Suppress
+   the row-level treatment and let the focused field carry the feedback. */
+.metadata-property.nfp-property.has-focus,
+.metadata-property.nfp-property:focus-within {
+	background-color: transparent;
+	box-shadow: none;
+}
+
 .nfp-root {
 	width: 100%;
 	font-size: var(--font-smaller);
