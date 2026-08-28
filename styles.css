@@ -1,0 +1,89 @@
+.nfp-root {
+	width: 100%;
+	font-size: var(--font-smaller);
+}
+
+.nfp-object,
+.nfp-array {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	width: 100%;
+}
+
+.nfp-value > .nfp-object,
+.nfp-value > .nfp-array,
+.nfp-array-item-body > .nfp-object {
+	padding-left: var(--size-4-3);
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.nfp-row,
+.nfp-array-item {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-2-2);
+}
+
+.nfp-row:hover > .nfp-remove,
+.nfp-array-item:hover > .nfp-remove {
+	opacity: 1;
+}
+
+.nfp-key {
+	color: var(--metadata-label-text-color, var(--text-muted));
+	flex-shrink: 0;
+}
+
+.nfp-value,
+.nfp-array-item-body {
+	flex-grow: 1;
+	min-width: 0;
+}
+
+.nfp-input {
+	width: 100%;
+	background: transparent;
+	border: none;
+	color: var(--text-normal);
+	font-family: inherit;
+	font-size: inherit;
+	padding: 0;
+}
+
+.nfp-input:focus {
+	box-shadow: none;
+	border-bottom: 1px solid var(--interactive-accent);
+}
+
+.nfp-input[type="checkbox"] {
+	width: auto;
+}
+
+.nfp-remove,
+.nfp-add {
+	background: none;
+	border: none;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 0 var(--size-2-1);
+	font-size: var(--font-smaller);
+}
+
+.nfp-remove {
+	opacity: 0;
+}
+
+.nfp-remove:hover,
+.nfp-add:hover {
+	color: var(--text-normal);
+}
+
+.nfp-add {
+	align-self: flex-start;
+}
+
+.nfp-hidden {
+	display: none;
+}
