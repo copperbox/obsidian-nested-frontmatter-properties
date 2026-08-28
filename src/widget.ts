@@ -54,30 +54,31 @@ function renderObject(
 	}
 	const addButton = createAddButton(container, "Add property");
 	addButton.addEventListener("click", () => {
-		addButton.addClass("nfp-hidden");
-		const input = container.createEl("input", {
-			cls: "nfp-input",
-			type: "text",
-			attr: { placeholder: "Property name" },
+		openAddForm(container, addButton, (form, dismiss) => {
+			const input = form.createEl("input", {
+				cls: "nfp-input",
+				type: "text",
+				attr: { placeholder: "Property name" },
+			});
+			const submit = (make: () => unknown) => {
+				const key = input.value.trim();
+				if (!key || key in node) {
+					input.focus();
+					return;
+				}
+				dismiss();
+				commit(addObjectKey(rootValue, path, key, make()));
+			};
+			appendKindButtons(form, submit);
+			input.addEventListener("keydown", (event) => {
+				if (event.key === "Enter") {
+					submit(() => "");
+				} else if (event.key === "Escape") {
+					dismiss();
+				}
+			});
+			input.focus();
 		});
-		const done = () => {
-			const key = input.value.trim();
-			input.remove();
-			addButton.removeClass("nfp-hidden");
-			if (key && !(key in node)) {
-				commit(addObjectKey(rootValue, path, key, ""));
-			}
-		};
-		input.addEventListener("blur", done);
-		input.addEventListener("keydown", (event) => {
-			if (event.key === "Enter") {
-				input.blur();
-			} else if (event.key === "Escape") {
-				input.value = "";
-				input.blur();
-			}
-		});
-		input.focus();
 	});
 }
 
@@ -97,8 +98,22 @@ function renderArray(
 	});
 	const addButton = createAddButton(container, "Add item");
 	addButton.addEventListener("click", () => {
-		const template = node.length > 0 ? blankLike(node[node.length - 1]) : "";
-		commit(addArrayItem(rootValue, path, template));
+		// Non-empty arrays keep growing in the shape of their last item; an
+		// empty array offers a choice of what its items should be.
+		if (node.length > 0) {
+			commit(addArrayItem(rootValue, path, blankLike(node[node.length - 1])));
+			return;
+		}
+		openAddForm(container, addButton, (form, dismiss) => {
+			appendKindButtons(form, (make) => {
+				dismiss();
+				commit(addArrayItem(rootValue, path, make()));
+			});
+			const first = form.querySelector("button");
+			if (first instanceof HTMLElement) {
+				first.focus();
+			}
+		});
 	});
 }
 
@@ -142,6 +157,58 @@ function renderLeaf(
 			input.blur();
 		}
 	});
+}
+
+// The kinds of empty value a new property or item can start as; picking
+// object or list is how deeper nesting levels get created.
+const EMPTY_KINDS: { icon: string; label: string; make: () => unknown }[] = [
+	{ icon: "lucide-text", label: "Add text", make: () => "" },
+	{ icon: "lucide-braces", label: "Add object", make: () => ({}) },
+	{ icon: "lucide-list-tree", label: "Add list", make: () => [] },
+];
+
+// Swap the add button for an inline form; dismissed on Escape or when focus
+// leaves the form (focusout with an outside relatedTarget, so moving between
+// the form's own controls doesn't cancel it).
+function openAddForm(
+	container: HTMLElement,
+	addButton: HTMLElement,
+	build: (form: HTMLElement, dismiss: () => void) => void
+): void {
+	addButton.addClass("nfp-hidden");
+	const form = container.createDiv({ cls: "nfp-add-form" });
+	const dismiss = () => {
+		form.remove();
+		addButton.removeClass("nfp-hidden");
+	};
+	form.addEventListener("focusout", (event) => {
+		const next = event.relatedTarget;
+		if (!(next instanceof Node) || !form.contains(next)) {
+			dismiss();
+		}
+	});
+	form.addEventListener("keydown", (event) => {
+		if (event.key === "Escape") {
+			dismiss();
+		}
+	});
+	build(form, dismiss);
+}
+
+function appendKindButtons(
+	form: HTMLElement,
+	submit: (make: () => unknown) => void
+): void {
+	for (const kind of EMPTY_KINDS) {
+		const button = form.createEl("button", {
+			cls: "clickable-icon nfp-kind-btn",
+			attr: { "aria-label": kind.label },
+		});
+		setIcon(button, kind.icon);
+		button.addEventListener("click", () => {
+			submit(kind.make);
+		});
+	}
 }
 
 // Native "+ Add property" markup so the buttons inherit Obsidian's own

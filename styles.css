@@ -104,3 +104,19 @@
 .nfp-hidden {
 	display: none;
 }
+
+.nfp-add-form {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+}
+
+.nfp-add-form input.nfp-input {
+	width: auto;
+	max-width: 14em;
+}
+
+/* Look and hover state come from Obsidian's clickable-icon class. */
+.nfp-kind-btn {
+	padding: var(--size-2-1);
+}
