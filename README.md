@@ -27,6 +27,15 @@ numbers, dates, checkboxes) are never touched.
 - Add and remove array items and object keys
 - Everything is written back through Obsidian's public frontmatter API
 
+## How this differs from Nested Properties
+
+The [Nested Properties](https://github.com/mnaoumov/obsidian-nested-properties)
+plugin covers similar ground with a larger feature set (vault-wide key renames,
+type conversion, collapsible trees). This plugin is an independent,
+from-scratch implementation with a different goal: the smallest possible
+trusted surface. It ships under 10 KB with no bundled framework, no Electron
+or Node API references, and a CI gate that keeps it that way.
+
 ## Design principles
 
 This plugin is deliberately minimal, built to carry zero automated risk flags on
