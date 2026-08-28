@@ -1,47 +1,58 @@
-import type { App, Component } from "obsidian";
+import type { App } from "obsidian";
 
-// Narrow, hand-written types for the undocumented surface this plugin touches.
-// Obsidian has no public API for property widgets, so every access to these
-// members is feature-detected at runtime; if a member is missing the plugin
-// deactivates itself and Obsidian's stock rendering is unaffected.
-
-export interface PropertyEntryData {
-	key: string;
-	type?: string;
-	value: unknown;
-}
+// Narrow, hand-written types for the undocumented surface this plugin touches,
+// matched against Obsidian 1.13 behavior. Obsidian has no public API for
+// property widgets, so every access to these members is feature-detected at
+// runtime; if a member is missing the plugin deactivates itself and Obsidian's
+// stock rendering is unaffected.
 
 export interface PropertyRenderContext {
 	app?: App;
 	key?: string;
 	sourcePath?: string;
-	onChange?: (value: unknown) => void;
+	blur?(): void;
+	onChange?(value: unknown): void;
+}
+
+export interface PropertyWidgetComponent {
+	focus(): void;
+	type?: string;
 }
 
 export interface PropertyTypeWidget {
 	type: string;
 	icon: string;
 	name(): string;
-	default(): unknown;
 	validate(value: unknown): boolean;
 	render(
 		el: HTMLElement,
-		data: PropertyEntryData,
+		value: unknown,
 		ctx: PropertyRenderContext
-	): Component | void;
+	): PropertyWidgetComponent;
 }
 
 export interface PropertyTypeInfo {
-	inferred?: PropertyTypeWidget;
+	inferred: PropertyTypeWidget;
 	expected?: PropertyTypeWidget;
 }
 
 export interface MetadataTypeManager {
 	registeredTypeWidgets: Record<string, PropertyTypeWidget>;
-	getTypeInfo(entry: PropertyEntryData): PropertyTypeInfo;
-	trigger?(name: string, ...args: unknown[]): void;
+	getTypeInfo(key: string, value: unknown): PropertyTypeInfo;
 }
 
 export interface AppWithInternals extends App {
 	metadataTypeManager?: MetadataTypeManager;
+}
+
+// The properties panel of an open markdown view. serialize()/synchronize() is
+// how Obsidian itself refreshes the panel; used only on plugin load/unload so
+// open notes pick up or drop our widget.
+export interface MetadataEditorLike {
+	serialize(): unknown;
+	synchronize(data: unknown): void;
+}
+
+export interface MarkdownViewWithMetadataEditor {
+	metadataEditor?: MetadataEditorLike;
 }

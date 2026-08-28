@@ -1,13 +1,14 @@
-import { Plugin } from "obsidian";
+import { MarkdownView, Plugin } from "obsidian";
 import { around } from "monkey-around";
 import { isNestedValue } from "./detect";
 import { renderNestedValue } from "./widget";
 import type {
 	AppWithInternals,
+	MarkdownViewWithMetadataEditor,
 	MetadataTypeManager,
-	PropertyEntryData,
 	PropertyRenderContext,
 	PropertyTypeInfo,
+	PropertyTypeWidget,
 } from "./internal-types";
 
 export const WIDGET_TYPE = "nested-frontmatter";
@@ -33,60 +34,67 @@ export default class NestedFrontmatterPropertiesPlugin extends Plugin {
 			return;
 		}
 
-		manager.registeredTypeWidgets[WIDGET_TYPE] = {
+		const widget: PropertyTypeWidget = {
 			type: WIDGET_TYPE,
 			icon: "lucide-braces",
 			name: () => "Nested",
-			default: () => ({}),
 			validate: (value: unknown) => isNestedValue(value),
-			render: (el, data, ctx) => {
-				this.renderWidget(el, data, ctx);
+			render: (el, value, ctx) => {
+				renderNestedValue(el, value, (newValue) => {
+					this.commit(newValue, ctx);
+				});
+				return {
+					focus: () => {
+						el.focus();
+					},
+					type: WIDGET_TYPE,
+				};
 			},
 		};
+
+		manager.registeredTypeWidgets[WIDGET_TYPE] = widget;
 		this.register(() => {
 			delete manager.registeredTypeWidgets[WIDGET_TYPE];
 		});
 
-		const widget = manager.registeredTypeWidgets[WIDGET_TYPE];
 		this.register(
 			around(manager as MetadataTypeManager & Record<string, unknown>, {
 				getTypeInfo: (next: MetadataTypeManager["getTypeInfo"]) =>
-					function (this: MetadataTypeManager, entry: PropertyEntryData): PropertyTypeInfo {
-						const info = next.call(this, entry);
-						// Claim only values the stock UI cannot render, and only
-						// when the user has not assigned an explicit type.
-						if (widget && entry && isNestedValue(entry.value) && !entry.type) {
-							return { ...info, inferred: widget };
+					function (
+						this: MetadataTypeManager,
+						key: string,
+						value: unknown
+					): PropertyTypeInfo {
+						const info = next.call(this, key, value);
+						// Claim only values Obsidian itself infers as "unknown"
+						// (the unsupported-type warning); explicit user-assigned
+						// types already resolve before that inference.
+						if (info?.inferred?.type === "unknown" && isNestedValue(value)) {
+							return { ...info, inferred: widget, expected: widget };
 						}
 						return info;
 					},
 			})
 		);
 
-		this.refreshPropertyPanels(manager);
+		this.reloadPropertyPanels();
 		this.register(() => {
-			this.refreshPropertyPanels(manager);
+			this.reloadPropertyPanels();
 		});
 	}
 
-	private renderWidget(
-		el: HTMLElement,
-		data: PropertyEntryData,
-		ctx: PropertyRenderContext
-	): void {
-		renderNestedValue(el, data.value, (value) => {
-			this.commit(data.key, value, ctx);
-		});
-	}
-
-	private commit(key: string, value: unknown, ctx: PropertyRenderContext): void {
-		// Prefer the metadata editor's own change pipeline when present; fall
-		// back to the public frontmatter API on the active file.
+	private commit(value: unknown, ctx: PropertyRenderContext): void {
+		// The metadata editor's own change pipeline persists and re-renders;
+		// fall back to the public frontmatter API on the source file.
 		if (typeof ctx.onChange === "function") {
 			ctx.onChange(value);
 			return;
 		}
-		const file = this.app.workspace.getActiveFile();
+		if (!ctx.sourcePath || !ctx.key) {
+			return;
+		}
+		const key = ctx.key;
+		const file = this.app.vault.getFileByPath(ctx.sourcePath);
 		if (file) {
 			void this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
 				frontmatter[key] = value;
@@ -94,9 +102,26 @@ export default class NestedFrontmatterPropertiesPlugin extends Plugin {
 		}
 	}
 
-	private refreshPropertyPanels(manager: MetadataTypeManager): void {
-		if (typeof manager.trigger === "function") {
-			manager.trigger("changed");
+	// Re-render the properties panel of open notes so they pick up (on load)
+	// or drop (on unload) the nested widget, the same way Obsidian refreshes
+	// the panel itself.
+	private reloadPropertyPanels(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+			if (!(leaf.view instanceof MarkdownView)) {
+				continue;
+			}
+			const editor = (leaf.view as MarkdownView & MarkdownViewWithMetadataEditor)
+				.metadataEditor;
+			if (
+				!editor ||
+				typeof editor.serialize !== "function" ||
+				typeof editor.synchronize !== "function"
+			) {
+				continue;
+			}
+			const data = editor.serialize();
+			editor.synchronize({});
+			editor.synchronize(data);
 		}
 	}
 }
