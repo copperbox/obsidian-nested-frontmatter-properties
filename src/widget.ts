@@ -4,6 +4,8 @@ import {
 	addArrayItem,
 	addObjectKey,
 	blankLike,
+	cloneValue,
+	getAtPath,
 	removeAtPath,
 	setAtPath,
 	type Leaf,
@@ -12,28 +14,48 @@ import {
 
 export type CommitFn = (value: unknown) => void;
 
-// Renders one nested property value as an editable tree. All persistence goes
-// through `commit`, which receives the full updated top-level value; the panel
-// re-renders from the metadata cache after the write lands.
-export function renderNestedValue(root: HTMLElement, value: unknown, commit: CommitFn): void {
-	root.empty();
-	root.addClass("nfp-root");
-	renderNode(root, value, [], value, commit);
+// Handlers must read and write through these, never through render-time
+// snapshots: Obsidian does not re-render a property widget after every
+// change, so a snapshot can be stale by the time a handler runs.
+interface TreeOps {
+	current(): unknown;
+	scalar(next: unknown): void;
+	structural(next: unknown): void;
 }
 
-function renderNode(
-	el: HTMLElement,
-	node: unknown,
-	path: Path,
-	rootValue: unknown,
-	commit: CommitFn
-): void {
+// Renders one nested property value as an editable tree. All persistence goes
+// through `commit`, which receives the full updated top-level value. The
+// widget owns a mutable model and redraws itself after structural changes
+// (add/remove) rather than relying on Obsidian re-rendering.
+export function renderNestedValue(root: HTMLElement, value: unknown, commit: CommitFn): void {
+	let model = cloneValue(value);
+	const draw = () => {
+		root.empty();
+		root.addClass("nfp-root");
+		renderNode(root, model, [], ops);
+	};
+	const ops: TreeOps = {
+		current: () => model,
+		scalar: (next) => {
+			model = next;
+			commit(model);
+		},
+		structural: (next) => {
+			model = next;
+			commit(model);
+			draw();
+		},
+	};
+	draw();
+}
+
+function renderNode(el: HTMLElement, node: unknown, path: Path, ops: TreeOps): void {
 	if (Array.isArray(node)) {
-		renderArray(el, node, path, rootValue, commit);
+		renderArray(el, node, path, ops);
 	} else if (isPlainObject(node)) {
-		renderObject(el, node, path, rootValue, commit);
+		renderObject(el, node, path, ops);
 	} else {
-		renderLeaf(el, node as Leaf, path, rootValue, commit);
+		renderLeaf(el, node as Leaf, path, ops);
 	}
 }
 
@@ -41,16 +63,15 @@ function renderObject(
 	el: HTMLElement,
 	node: Record<string, unknown>,
 	path: Path,
-	rootValue: unknown,
-	commit: CommitFn
+	ops: TreeOps
 ): void {
 	const container = el.createDiv({ cls: "nfp-object" });
 	for (const [key, value] of Object.entries(node)) {
 		const row = container.createDiv({ cls: "nfp-row" });
 		row.createSpan({ cls: "nfp-key", text: key });
 		const valueEl = row.createDiv({ cls: "nfp-value" });
-		renderNode(valueEl, value, [...path, key], rootValue, commit);
-		addRemoveButton(row, [...path, key], rootValue, commit);
+		renderNode(valueEl, value, [...path, key], ops);
+		addRemoveButton(row, [...path, key], ops);
 	}
 	const addButton = createAddButton(container, "Add property");
 	addButton.addEventListener("click", () => {
@@ -62,19 +83,20 @@ function renderObject(
 			});
 			const submit = (make: () => unknown) => {
 				const key = input.value.trim();
-				if (!key || key in node) {
+				const target = getAtPath(ops.current(), path);
+				if (!key || (isPlainObject(target) && key in target)) {
 					input.focus();
 					return;
 				}
 				dismiss();
-				commit(addObjectKey(rootValue, path, key, make()));
+				ops.structural(addObjectKey(ops.current(), path, key, make()));
 			};
 			appendKindButtons(form, submit);
 			input.addEventListener("keydown", (event) => {
 				if (event.key === "Enter") {
+					event.preventDefault();
+					event.stopPropagation();
 					submit(() => "");
-				} else if (event.key === "Escape") {
-					dismiss();
 				}
 			});
 			input.focus();
@@ -82,32 +104,28 @@ function renderObject(
 	});
 }
 
-function renderArray(
-	el: HTMLElement,
-	node: unknown[],
-	path: Path,
-	rootValue: unknown,
-	commit: CommitFn
-): void {
+function renderArray(el: HTMLElement, node: unknown[], path: Path, ops: TreeOps): void {
 	const container = el.createDiv({ cls: "nfp-array" });
 	node.forEach((item, index) => {
 		const itemEl = container.createDiv({ cls: "nfp-array-item" });
 		const body = itemEl.createDiv({ cls: "nfp-array-item-body" });
-		renderNode(body, item, [...path, index], rootValue, commit);
-		addRemoveButton(itemEl, [...path, index], rootValue, commit);
+		renderNode(body, item, [...path, index], ops);
+		addRemoveButton(itemEl, [...path, index], ops);
 	});
 	const addButton = createAddButton(container, "Add item");
 	addButton.addEventListener("click", () => {
 		// Non-empty arrays keep growing in the shape of their last item; an
 		// empty array offers a choice of what its items should be.
-		if (node.length > 0) {
-			commit(addArrayItem(rootValue, path, blankLike(node[node.length - 1])));
+		const target = getAtPath(ops.current(), path);
+		const items = Array.isArray(target) ? target : [];
+		if (items.length > 0) {
+			ops.structural(addArrayItem(ops.current(), path, blankLike(items[items.length - 1])));
 			return;
 		}
 		openAddForm(container, addButton, (form, dismiss) => {
 			appendKindButtons(form, (make) => {
 				dismiss();
-				commit(addArrayItem(rootValue, path, make()));
+				ops.structural(addArrayItem(ops.current(), path, make()));
 			});
 			const first = form.querySelector("button");
 			if (first instanceof HTMLElement) {
@@ -117,18 +135,12 @@ function renderArray(
 	});
 }
 
-function renderLeaf(
-	el: HTMLElement,
-	value: Leaf,
-	path: Path,
-	rootValue: unknown,
-	commit: CommitFn
-): void {
+function renderLeaf(el: HTMLElement, value: Leaf, path: Path, ops: TreeOps): void {
 	if (typeof value === "boolean") {
 		const input = el.createEl("input", { cls: "nfp-input", type: "checkbox" });
 		input.checked = value;
 		input.addEventListener("change", () => {
-			commit(setAtPath(rootValue, path, input.checked));
+			ops.scalar(setAtPath(ops.current(), path, input.checked));
 		});
 		return;
 	}
@@ -138,22 +150,37 @@ function renderLeaf(
 		cls: "nfp-input",
 		type: isNumber ? "number" : "text",
 	});
+	// Tracks the last committed value so repeated blurs don't re-commit and
+	// Escape reverts to what's actually stored.
+	let committed: Leaf = value;
 	input.value = value === null || value === undefined ? "" : String(value);
 
 	const commitInput = () => {
+		// A structural redraw can detach this input before its blur runs;
+		// the path may no longer exist, so drop the stale event.
+		if (!input.isConnected) {
+			return;
+		}
 		const raw = input.value;
-		const parsed: Leaf = isNumber && raw !== "" && !Number.isNaN(Number(raw)) ? Number(raw) : raw;
-		if (parsed !== value) {
-			commit(setAtPath(rootValue, path, parsed));
+		const parsed: Leaf =
+			isNumber && raw !== "" && !Number.isNaN(Number(raw)) ? Number(raw) : raw;
+		if (parsed !== committed) {
+			committed = parsed;
+			ops.scalar(setAtPath(ops.current(), path, parsed));
 		}
 	};
 
 	input.addEventListener("blur", commitInput);
+	// Handled keys must not reach Obsidian's own metadata-editor handlers.
 	input.addEventListener("keydown", (event) => {
 		if (event.key === "Enter") {
+			event.preventDefault();
+			event.stopPropagation();
 			input.blur();
 		} else if (event.key === "Escape") {
-			input.value = value === null || value === undefined ? "" : String(value);
+			event.preventDefault();
+			event.stopPropagation();
+			input.value = committed === null || committed === undefined ? "" : String(committed);
 			input.blur();
 		}
 	});
@@ -189,6 +216,8 @@ function openAddForm(
 	});
 	form.addEventListener("keydown", (event) => {
 		if (event.key === "Escape") {
+			event.preventDefault();
+			event.stopPropagation();
 			dismiss();
 		}
 	});
@@ -220,18 +249,18 @@ function createAddButton(container: HTMLElement, label: string): HTMLElement {
 	return button;
 }
 
-function addRemoveButton(
-	row: HTMLElement,
-	path: Path,
-	rootValue: unknown,
-	commit: CommitFn
-): void {
+function addRemoveButton(row: HTMLElement, path: Path, ops: TreeOps): void {
 	const button = row.createEl("button", {
 		cls: "nfp-remove",
 		attr: { "aria-label": "Remove" },
 		text: "×",
 	});
+	// Keep a focused input from blurring (and committing) mid-click; the
+	// blur/re-render race otherwise swallows the click entirely.
+	button.addEventListener("mousedown", (event) => {
+		event.preventDefault();
+	});
 	button.addEventListener("click", () => {
-		commit(removeAtPath(rootValue, path));
+		ops.structural(removeAtPath(ops.current(), path));
 	});
 }

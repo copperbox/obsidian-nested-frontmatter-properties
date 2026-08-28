@@ -10,6 +10,10 @@ function clone<T>(value: T): T {
 	return structuredClone(value);
 }
 
+export function cloneValue<T>(value: T): T {
+	return clone(value);
+}
+
 function resolveParent(root: unknown, path: Path): unknown {
 	let node: unknown = root;
 	for (const segment of path.slice(0, -1)) {
