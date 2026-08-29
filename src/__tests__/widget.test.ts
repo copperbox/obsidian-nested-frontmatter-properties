@@ -136,6 +136,28 @@ describe("adding properties", () => {
 	});
 });
 
+describe("blur-cascade resilience", () => {
+	// Obsidian's Enter keymap blurs the input before our keydown handler runs;
+	// the blur cascade dismisses the form and can leave form.remove() throwing
+	// (NotFoundError). Submit must still commit.
+	it("commits on Enter even when blur already dismissed the form", () => {
+		render({});
+		click(Array.from(root.querySelectorAll(".nfp-add")).find((el) => el.textContent?.includes("Add property")) ?? null);
+		const form = root.querySelector<HTMLElement>(".nfp-add-form")!;
+		const input = form.querySelector<HTMLInputElement>("input")!;
+		input.value = "late";
+		// Simulate the keymap blur: focusout with no related target dismisses.
+		input.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+		expect(root.querySelector(".nfp-add-form")).toBeNull();
+		// A second removal attempt throws, as observed in the live app.
+		form.remove = () => {
+			throw new DOMException("The node to be removed is no longer a child of this node.", "NotFoundError");
+		};
+		pressEnter(input);
+		expect(commits).toEqual([{ late: "" }]);
+	});
+});
+
 describe("removing properties", () => {
 	it("removes an object property via its remove button", () => {
 		render({ title: "x", count: 2 });

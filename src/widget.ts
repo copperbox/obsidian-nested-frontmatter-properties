@@ -204,8 +204,15 @@ function openAddForm(
 ): void {
 	addButton.addClass("nfp-hidden");
 	const form = container.createDiv({ cls: "nfp-add-form" });
+	// Obsidian's Enter keymap blurs the input before our keydown handler runs,
+	// and the blur cascade can already tear the form out of the DOM; dismiss
+	// must be idempotent and never throw, or submit dies before committing.
 	const dismiss = () => {
-		form.remove();
+		try {
+			form.remove();
+		} catch {
+			// already detached by a blur-triggered re-render
+		}
 		addButton.removeClass("nfp-hidden");
 	};
 	form.addEventListener("focusout", (event) => {

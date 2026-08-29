@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-nested-frontmatter-properties",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"description": "An Obsidian plugin that renders and edits nested frontmatter properties, such as arrays of objects, in the native Properties panel.",
 	"main": "main.js",
 	"type": "module",
