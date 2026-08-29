@@ -23,16 +23,16 @@ Without the plugin, Obsidian's Properties panel shows those values as raw text
 with an "unknown type" warning:
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/properties-before-dark.png">
-  <img alt="Properties panel without the plugin: authors and meta shown as raw JSON with unknown-type icons" src="docs/img/properties-before-light.png" width="600">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/copperbox/obsidian-nested-frontmatter-properties/main/docs/img/properties-before-dark.png">
+  <img alt="Properties panel without the plugin: authors and meta shown as raw JSON with unknown-type icons" src="https://raw.githubusercontent.com/copperbox/obsidian-nested-frontmatter-properties/main/docs/img/properties-before-light.png" width="600">
 </picture>
 
 With the plugin, the same `authors` and `meta` properties render as indented,
 editable rows:
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/properties-after-dark.png">
-  <img alt="Properties panel with the plugin: nested name/pages rows per author, a draft checkbox, and add-property/add-item buttons" src="docs/img/properties-after-light.png" width="600">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/copperbox/obsidian-nested-frontmatter-properties/main/docs/img/properties-after-dark.png">
+  <img alt="Properties panel with the plugin: nested name/pages rows per author, a draft checkbox, and add-property/add-item buttons" src="https://raw.githubusercontent.com/copperbox/obsidian-nested-frontmatter-properties/main/docs/img/properties-after-light.png" width="600">
 </picture>
 
 Values Obsidian already supports (text, lists of scalars, numbers, dates,
@@ -43,8 +43,8 @@ checkboxes) are never touched.
   for each new value:
 
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/img/add-property-dark.png">
-    <img alt="Inline add-property form inside an array item, with a key input and text/object/list type buttons" src="docs/img/add-property-light.png" width="600">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/copperbox/obsidian-nested-frontmatter-properties/main/docs/img/add-property-dark.png">
+    <img alt="Inline add-property form inside an array item, with a key input and text/object/list type buttons" src="https://raw.githubusercontent.com/copperbox/obsidian-nested-frontmatter-properties/main/docs/img/add-property-light.png" width="600">
   </picture>
 
 - Everything is written back through Obsidian's public frontmatter API
