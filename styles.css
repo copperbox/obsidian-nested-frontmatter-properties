@@ -53,7 +53,7 @@
 /* Values read as plain text until interacted with; the form-field box
    treatment appears only on focus. The compound selector out-specifies
    Obsidian's input[type="text"] base styles. */
-.nfp-root input.nfp-input {
+.nfp-root input.nfp-input:not([type="checkbox"]) {
 	width: 100%;
 	background: transparent;
 	border: none;
@@ -66,17 +66,13 @@
 	padding: 0 var(--size-2-2);
 }
 
-.nfp-root input.nfp-input:hover {
+.nfp-root input.nfp-input:not([type="checkbox"]):hover {
 	background: var(--background-modifier-hover);
 }
 
-.nfp-root input.nfp-input:focus {
+.nfp-root input.nfp-input:not([type="checkbox"]):focus {
 	background: var(--background-modifier-form-field);
 	box-shadow: 0 0 0 1px var(--background-modifier-border-focus);
-}
-
-.nfp-root input.nfp-input[type="checkbox"] {
-	width: auto;
 }
 
 .nfp-remove {
